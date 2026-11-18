@@ -1,0 +1,7 @@
+Natasya’s Curiosity Studio — editable source export
+Published version: 3
+Source commit: 79e7e09edb40e4ead1befba421be1c62f5233058
+Website: https://natasya-curiosity-studio.pureturnip2.chatgpt.site
+Export date: 2026-11-18
+
+This portable export contains the actual editable website and all supplied assets. Git metadata, hosting account configuration, and temporary preview files are excluded.

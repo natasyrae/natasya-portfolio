@@ -1,0 +1,21 @@
+Please work on the portfolio project in this folder.
+
+Project: Natasya Suryanto — The Curiosity Studio.
+This is an existing interactive portfolio, not a request to rebuild it from scratch.
+
+Start by reading START_HERE.md and README.md, then inspect the relevant source files.
+
+Structure:
+- dist/index.html: page structure and main biographical content.
+- dist/styles.css: styling, responsive layouts, and animations.
+- dist/app.js: project data, interactive demos, filters, skills, explorer passport, and photo/certificate galleries.
+- dist/world.js: Canvas isometric studio and keyboard/touch game controls.
+- dist/assets/: supplied portrait, two robotics photos, two original award certificates, CV PDF, favicon, and local symbol font.
+
+Implementation: plain HTML, CSS, and JavaScript. No framework, dependency installation, or build step is required. Preview dist/index.html directly, or serve dist/ with a static server.
+
+Keep the website in English. Preserve Natasya’s actual CV information, original portrait and certificates, working project demos, accessible controls, and mobile responsiveness. Clearly label educational or fictional demo content. Do not invent project URLs, work achievements, or qualifications.
+
+Make the requested changes, verify the affected behavior, and explain which files changed. Prepare an editable result first; do not publish or upload it anywhere unless I request that.
+
+The change I want is: [replace this with your request].
