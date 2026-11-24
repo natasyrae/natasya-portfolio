@@ -1,173 +1,106 @@
-'use strict';
 (() => {
-  const $ = (s, root=document) => root.querySelector(s);
-  const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-  const safeRead = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-  const safeWrite = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
-  const lang = 'en';
-  let discoveries = new Set(safeRead('ns-discoveries',[]).filter(x=>['work','story','skills','contact'].includes(x)));
-  let paused = safeRead('ns-paused', window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  let activeFilter='all', activeSkill='build', activeProject=null, lastFocus=null, toastTimer;
-  const tr=(en,id)=>lang==='id'?id:en;
-  const escapeHTML = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const browserBar = '<div class="browser-bar"><i></i><i></i><i></i><span>made by natasya</span></div>';
-  const dashboardArt=(old=false)=>`<div class="mini-browser">${browserBar}<div class="dashboard-mock"><div class="dash-sidebar"><div class="dash-logo">${old?'stockwise.':'stockroom.'}</div><p>▦ &nbsp; Overview</p><p>▤ &nbsp; Inventory</p><p>▥ &nbsp; Analytics</p><p>⚙ &nbsp; Settings</p></div><div class="dash-main"><div class="dash-top">Your stock, in perspective.<span>Good morning, Natasya ↗</span></div><div class="dash-stats"><div>TOTAL PRODUCTS<strong>248</strong></div><div>INCOMING TODAY<strong>+32</strong></div><div>LOW STOCK<strong>04</strong></div></div><div class="dash-chart"><span>Inventory overview</span><div class="bar-chart">${[48,78,58,92,66,81,51,95,68,86].map(h=>`<i style="height:${h}%"></i>`).join('')}</div></div><div class="dash-bottom"><i></i><i></i><i></i></div></div></div></div>`;
-  const art={
-    inventory:dashboardArt(),
-    rsa:'<div class="rsa-mock"><div class="rsa-top"><strong>cipherlab.</strong><span>A LITTLE CRYPTOGRAPHY, DEMYSTIFIED.</span></div><h4>Some things are<br>better kept <em>secret.</em></h4><p>Turn your message into a little mathematical mystery.</p><div class="cipher-line"><div class="cipher-box">HELLO</div><span class="cipher-arrow">→</span><div class="cipher-box">3000 1313 2726</div></div><div class="rsa-lock"></div></div>',
-    banking:'<div class="phone-mock"><div class="phone-notch"></div><div class="bank-greeting">Good morning,<strong>Natasya ☀</strong></div><div class="bank-card"><span>YOUR BALANCE</span><strong>Rp 8.450.000</strong><i>•••• 2206</i></div><div class="bank-actions"><i>↗</i><i>+</i><i>▦</i></div><div class="bank-tx">Recent activity<p><span>↗ Coffee corner</span><span>− 35.000</span></p><p><span>↙ Monthly savings</span><span>+ 500.000</span></p><p><span>↗ Bookstore</span><span>− 125.000</span></p></div></div><div class="phone-mock second"><div class="phone-notch"></div><h4>Send a little<br>something.</h4><p>Simple. Thoughtful. Seamless.</p><div class="bank-amount">Rp 250.000</div><div class="bank-keypad">1<span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>',
-    ticket:'<div class="ticket-mock"><div class="ticket-banner"><strong>TiketIn.</strong><span>YOUR NEXT CHAPTER →</span></div><div class="ticket-main"><div class="ticket-route"><div><strong>JKT</strong>JAKARTA</div><span>··· 🚆 ···</span><div><strong>BDG</strong>BANDUNG</div></div><div class="ticket-meta"><div>PASSENGER<strong>Natasya Suryanto</strong></div><div>CLASS<strong>Executive</strong></div><div>SEAT<strong>08A</strong></div></div><div class="ticket-barcode"></div></div></div>',
-    fastbite:'<div class="landing-mock"><div class="landing-nav"><strong>FastBite<span>✳</span></strong><span>Our story &nbsp; Partnership &nbsp; Say hello ↗</span></div><div class="landing-body"><div><h4>Big flavor.<br>Bigger<br>possibilities.</h4><p>A fresh start for your next venture.</p><small>Become a partner ↗</small></div><div class="burger-art"><i></i><i></i><i></i><i></i><i></i></div></div></div>',
-    rental:'<div class="landing-mock car-mock"><div class="landing-nav"><strong>ONWARD.</strong><span>Our fleet &nbsp; Your journey ↗</span></div><div class="landing-body"><div><h4>Less ordinary.<br>More open<br>road.</h4><p>Your next adventure starts here.</p><small>Find your ride ↗</small></div><div class="car-art"><div class="car-roof"></div><div class="car-body"></div><div class="car-wheel"></div><div class="car-wheel"></div></div></div></div>',
-    inventory23:dashboardArt(true)
+  'use strict';
+  const cityIds = ['chongqing', 'shanghai', 'harbin'];
+  const storageKey = 'natasya.china-quest.v1.visited';
+  let visited = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(saved)) visited = new Set(saved.filter(id => cityIds.includes(id)));
+  } catch { /* Progress still works for this session. */ }
+
+  function renderProgress() {
+    const count = visited.size;
+    const track = document.getElementById('progressTrack');
+    track.setAttribute('aria-valuenow', count);
+    document.getElementById('progressText').textContent = count + '/3 cities';
+    [...track.children].forEach((bar, i) => bar.classList.toggle('done', i < count));
+    track.setAttribute('aria-valuetext', count + ' of 3 cities visited');
+    document.querySelectorAll('.map-pin[data-map-city]').forEach(marker => {
+      const reached = visited.has(marker.dataset.mapCity);
+      marker.classList.toggle('map-visited', reached);
+      if (reached) marker.setAttribute('aria-description', 'Previously visited');
+    });
+  }
+  window.markCityVisited = id => {
+    if (!cityIds.includes(id) || visited.has(id)) return;
+    visited.add(id);
+    renderProgress();
+    try { localStorage.setItem(storageKey, JSON.stringify([...visited])); } catch { /* Session only. */ }
   };
-  const projects=[
-    {id:'inventory',category:'web',year:'2024',title:['Inventory, in perspective.','Stok yang lebih teratur.'],name:'Inventory Management Web App',dates:'January – July 2024',caption:['A clearer view of stock. A smoother everyday workflow.','Stok lebih mudah dipantau. Pekerjaan lebih lancar.'],tags:['JavaScript','Bootstrap','Chart.js','DataTables'],label:'WEB DEVELOPMENT / INTERACTIVE DEMO',description:['An inventory web app that brings products, stock levels, and categories into one responsive interface.','Aplikasi inventori yang menyatukan produk, jumlah stok, dan kategori dalam antarmuka responsif.'],problem:['Inventory is easier to manage when records are searchable and stock changes are visible at a glance.','Inventori lebih mudah dikelola ketika data dapat dicari dan perubahan stok langsung terlihat.'],built:['CRUD operations with localStorage persistence.','Dynamic line and bar charts with Chart.js.','Searchable, paginated tables with DataTables.'],builtId:['Operasi CRUD dengan penyimpanan localStorage.','Grafik garis dan batang dinamis dengan Chart.js.','Tabel yang dapat dicari dan dibagi halaman dengan DataTables.']},
-    {id:'rsa',category:'web',year:'2024',title:['A little mathematical mystery.','Rahasia kecil matematika.'],name:'RSA Encryption & Decryption Web',dates:'June – July 2024',caption:['Making cryptography something you can actually play with.','Belajar kriptografi sambil langsung mencoba.'],tags:['JavaScript','RSA','TailwindCSS','Flowbite'],label:'WEB DEVELOPMENT / TRY THE CIPHER',description:['An interactive introduction to public-key cryptography, taking a message from plaintext to ciphertext and back.','Pengenalan interaktif kriptografi kunci publik: dari teks asli ke teks terenkripsi, lalu kembali lagi.'],problem:['Abstract cryptography concepts become easier to understand when you can see each step.','Konsep kriptografi lebih mudah dipahami ketika setiap langkah bisa dicoba.'],built:['Dynamic public and private key generation in the original project.','Encryption and decryption using modular exponentiation.','Responsive plaintext and ciphertext interactions.'],builtId:['Pembuatan kunci publik dan privat dinamis pada proyek asli.','Enkripsi dan dekripsi dengan eksponensiasi modular.','Interaksi teks asli dan terenkripsi dalam tampilan responsif.']},
-    {id:'banking',category:'design',year:'2024',title:['Everyday banking, considered.','Perbankan yang terasa mudah.'],name:'Mobile Banking UI/UX Design',dates:'February – March 2024',caption:['An interface that makes the next step feel natural.','Antarmuka dengan langkah berikutnya yang terasa alami.'],tags:['Figma','UI/UX','Prototyping'],label:'UI/UX DESIGN / CLICKABLE CONCEPT',description:['A Figma banking interface inspired by MyBCA, focused on intuitive navigation and clear visual hierarchy.','Desain antarmuka mobile banking di Figma, terinspirasi MyBCA, dengan navigasi intuitif dan hierarki visual yang jelas.'],problem:['Routine financial tasks should be easy to find and straightforward to complete.','Aktivitas perbankan sehari-hari perlu mudah ditemukan dan diselesaikan.'],built:['Interactive login and account overview screens.','Fund transfer and transaction history flows.','Usability, accessibility, and visual hierarchy exploration.'],builtId:['Layar login dan ringkasan akun interaktif.','Alur transfer dana dan riwayat transaksi.','Eksplorasi kemudahan penggunaan, aksesibilitas, dan hierarki visual.']},
-    {id:'ticket',category:'web',year:'2025',title:['Your next chapter, booked.','Perjalanan berikutnya, siap.'],name:'TiketIn — Train Ticket Booking',dates:'March – April 2025',caption:['From “where next?” to a ticket in your hands.','Dari “ke mana lagi?” sampai tiket di tangan.'],tags:['PHP','JavaScript','MySQL','HTML / CSS'],label:'FULL-STACK WEB / TRY A SEARCH',description:['A train ticket booking website with class-based search, reservations, and a printable ticket receipt.','Website pemesanan tiket kereta dengan pencarian berdasarkan kelas, reservasi, dan struk tiket yang dapat dicetak.'],problem:['A booking flow needs to carry passenger information clearly from search through confirmation.','Alur pemesanan perlu membawa informasi penumpang dengan jelas dari pencarian hingga konfirmasi.'],built:['Homepage, ticket search, and booking confirmation.','Ticket generation and printable receipts with PHP and JavaScript.','MySQL integration for bookings and passenger records.'],builtId:['Beranda, pencarian tiket, dan konfirmasi pemesanan.','Pembuatan tiket dan struk cetak dengan PHP dan JavaScript.','Integrasi MySQL untuk data pemesanan dan penumpang.']},
-    {id:'fastbite',category:'web',year:'2025',title:['A fresh take on opportunity.','Peluang dengan rasa baru.'],name:'FastBite — Franchise Landing Page',dates:'January 2025',caption:['A franchise story, told with a little more flavor.','Cerita kemitraan dengan tampilan yang lebih menggugah.'],tags:['HTML','CSS','JavaScript','Responsive UI'],label:'FRONT-END / INTERACTIVE CONCEPT',description:['A responsive franchise landing page presenting business packages and partnership opportunities.','Landing page waralaba responsif yang menampilkan paket usaha dan peluang kemitraan.'],problem:['A business landing page needs to introduce the brand and guide visitors toward a clear next step.','Landing page bisnis perlu mengenalkan merek dan mengarahkan pengunjung ke langkah berikutnya.'],built:['Interactive hero carousel and company introduction.','Business package sections and calls to action.','Responsive layouts across desktop and mobile.'],builtId:['Carousel hero interaktif dan pengenalan perusahaan.','Bagian paket usaha dan ajakan untuk bermitra.','Tampilan responsif di desktop dan ponsel.']},
-    {id:'rental',category:'web',year:'2024',title:['For the open-road kind of day.','Saatnya menjelajahi jalan.'],name:'Car Rental — Front-End Website',dates:'November 2024',caption:['A responsive automotive concept with room to explore.','Konsep otomotif responsif yang mengajak menjelajah.'],tags:['HTML','CSS','JavaScript'],label:'FRONT-END / EXPLORE THE FLEET',description:['A car rental website created as a front-end design practice project.','Website bertema rental mobil sebagai proyek latihan desain dan pengembangan front-end.'],problem:['Exploring vehicle options should feel inviting on any screen size.','Menjelajahi pilihan kendaraan perlu terasa nyaman pada berbagai ukuran layar.'],built:['Automotive promotional video on the original landing page.','Interactive vehicle selection with detailed information.','Responsive layout and user-friendly navigation.'],builtId:['Video promosi otomotif pada landing page asli.','Pilihan kendaraan interaktif dengan informasi detail.','Tampilan responsif dan navigasi yang mudah digunakan.']},
-    {id:'inventory23',category:'web',year:'2023',title:['Where the building began.','Awal perjalanan berkarya.'],name:'Inventory Management System',dates:'August – November 2023',caption:['Stock movements, made visible. One of my early web projects.','Pergerakan stok yang lebih jelas. Salah satu proyek web pertamaku.'],tags:['HTML','CSS','JavaScript','Chart.js'],label:'WEB DEVELOPMENT / THE EARLY DAYS',description:['An early inventory system for recording incoming and outgoing quantities with interactive stock visualization.','Sistem inventori awal untuk mencatat barang masuk dan keluar dengan visualisasi stok interaktif.'],problem:['Keeping incoming and outgoing quantities in sync is a useful real-world starting point for learning web development.','Menjaga kesesuaian barang masuk dan keluar menjadi langkah awal yang nyata untuk belajar pengembangan web.'],built:['Forms for adding products and quantities.','Incoming and outgoing stock tracking.','Dynamic Chart.js visualizations of stock levels.'],builtId:['Form penambahan produk dan jumlah.','Pencatatan barang masuk dan keluar.','Visualisasi stok dinamis dengan Chart.js.']}
-  ];
-  const skillData={
-    build:{title:['From idea to interface.','Dari ide ke antarmuka.'],body:['Building responsive websites and practical web apps, from inventory tools to booking flows. Learning by turning real problems into working interfaces.','Membangun website responsif dan aplikasi praktis, dari alat inventori hingga alur pemesanan. Belajar dengan mengubah masalah nyata menjadi antarmuka yang berfungsi.'],tags:['HTML','CSS','JavaScript','PHP','Bootstrap','TailwindCSS','MySQL'],evidence:['IN PRACTICE → Inventory apps, TiketIn, RSA web','PENERAPAN → Aplikasi inventori, TiketIn, web RSA']},
-    design:{title:['Thoughtful, from the first click.','Dipikirkan sejak klik pertama.'],body:['Exploring intuitive navigation, accessibility, and visual hierarchy through responsive layouts and interactive prototypes.','Mengeksplorasi navigasi intuitif, aksesibilitas, dan hierarki visual melalui tampilan responsif dan prototipe interaktif.'],tags:['Figma','Interactive prototyping','UI/UX principles','Responsive design','User flows'],evidence:['IN PRACTICE → Mobile banking UI/UX, landing pages','PENERAPAN → UI/UX mobile banking, landing page']},
-    data:{title:['A clearer picture of the numbers.','Melihat angka dengan lebih jelas.'],body:['Using data visualization and databases to make information easier to understand. My interest in the Indonesian stock market keeps that analytical curiosity going.','Menggunakan visualisasi dan database agar informasi lebih mudah dipahami. Ketertarikan pada pasar saham Indonesia ikut menjaga rasa ingin tahu analitis itu.'],tags:['Python','SQL','MySQL','Chart.js','Data visualization','Technical reporting'],evidence:['LEARNING → Dicoding Data Science & Data Visualization','PEMBELAJARAN → Dicoding Data Science & Data Visualization']},
-    people:{title:['Ideas travel better together.','Ide tumbuh bersama orang lain.'],body:['Communicating technical ideas, collaborating across cultures, and helping teams coordinate. Comfortable taking a story from the workbench to the presentation stage.','Menyampaikan ide teknis, berkolaborasi lintas budaya, dan membantu koordinasi tim. Nyaman membawa cerita dari meja kerja ke panggung presentasi.'],tags:['English presentation','Collaboration','Public relations','Coordination','Adaptability','Documentation'],evidence:['IN PRACTICE → RAICOM, GDSC, BEM, NSN','PENERAPAN → RAICOM, GDSC, BEM, NSN']}
-  };
-  const toast=message=>{clearTimeout(toastTimer);$('#toast').textContent=message;$('#toast').classList.add('show');toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3500);};
-  const renderProjects=()=>{
-    $('#projects-grid').innerHTML=projects.filter(p=>activeFilter==='all'||p.category===activeFilter).map(p=>`<article class="project-card"><button class="project-art art-${p.id}" data-project="${p.id}" aria-label="${escapeHTML(tr('Explore ','Jelajahi ')+p.name)}"><span class="art-label">${p.label}</span>${art[p.id]}<span class="project-open" aria-hidden="true">↗</span></button><div class="project-meta"><h3 class="project-title"><button data-project="${p.id}">${p.title[lang==='id'?1:0]}</button></h3><span class="project-year">${p.year}</span></div><p class="project-caption">${p.caption[lang==='id'?1:0]}</p><div class="project-tags">${p.tags.map(t=>`<span>${t}</span>`).join('')}</div></article>`).join('');
-  };
-  const renderSkills=()=>{
-    const s=skillData[activeSkill], i=lang==='id'?1:0;
-    $('#skill-panel').innerHTML=`<h3>${s.title[i]}</h3><p>${s.body[i]}</p><div class="skill-tags">${s.tags.map(t=>`<span>${t}</span>`).join('')}</div><p class="skill-evidence">${s.evidence[i]}</p>`;
-    $('#skill-panel').setAttribute('aria-labelledby','tab-'+activeSkill);
-    $$('[data-skill]').forEach(b=>{const selected=b.dataset.skill===activeSkill;b.setAttribute('aria-selected',selected);b.tabIndex=selected?0:-1;});
-  };
-  const updatePassport=()=>{
-    const n=discoveries.size;
-    $('#passport-count').textContent=`${n} / 4 ${tr('discovered','ditemukan')}`;
-    $$('.passport-dots i').forEach((el,i)=>el.classList.toggle('filled',i<n));
-    $$('[data-station]').forEach(el=>el.classList.toggle('discovered',discoveries.has(el.dataset.station)));
-    const labels={work:tr('The work','Karya'),story:tr('My story','Ceritaku'),skills:tr('The toolkit','Keahlian'),contact:tr('Say hello','Sapa aku')};
-    $('#passport-stamps').innerHTML=Object.entries(labels).map(([id,label],i)=>`<div class="${discoveries.has(id)?'filled':''}"><b>${discoveries.has(id)?'✓':'0'+(i+1)}</b>${label}</div>`).join('');
-    $('#passport-message').textContent=n===4?tr('Curiosity looks good on you. Thanks for exploring my world!','Rasa ingin tahu cocok denganmu. Terima kasih sudah menjelajahi duniaku!'):tr(`${4-n} more corner${4-n===1?'':'s'} to explore. Follow the signs in the studio.`,`Masih ada ${4-n} sudut untuk dijelajahi. Ikuti papan di studio.`);
-  };
-  const discover=id=>{if(discoveries.has(id))return;discoveries.add(id);safeWrite('ns-discoveries',[...discoveries]);updatePassport();if(discoveries.size===4){toast(tr('✳ All four corners explored. Your explorer passport is complete!','✳ Keempat sudut sudah dijelajahi. Paspor penjelajahmu lengkap!'));window.dispatchEvent(new CustomEvent('ns-celebrate'));}};
-  const setMotion=()=>{document.body.classList.toggle('motion-paused',paused);$('#motion-toggle').setAttribute('aria-pressed',String(paused));$('#motion-toggle').textContent=paused?tr('Resume animations','Lanjutkan animasi'):tr('Pause animations','Jeda animasi');window.dispatchEvent(new CustomEvent('ns-motion',{detail:paused}));};
-  const initialize=()=>{document.documentElement.lang='en';renderProjects();renderSkills();updatePassport();setMotion();};
-  const openDialog=dialog=>{lastFocus=document.activeElement;dialog.showModal();document.body.style.overflow='hidden';};
-  const closeDialog=dialog=>{dialog.close();document.body.style.overflow='';activeProject=null;lastFocus?.focus({preventScroll:true});};
-  $$('dialog').forEach(d=>{d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDialog(d);}});d.addEventListener('cancel',()=>{document.body.style.overflow='';activeProject=null;});d.addEventListener('close',()=>{document.body.style.overflow='';});});
-  $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeDialog(b.closest('dialog'))));
-  const demoShell=(title,label,body,extra='')=>`<div class="mini-demo ${extra}"><div class="demo-topbar"><strong>${title}</strong><span>${label}</span></div><div class="demo-body">${body}</div></div>`;
-  function inventoryDemo(){
-    return demoShell(tr('Try the stockroom.','Coba kelola stok.'),tr('INTERACTIVE RECREATION','REKREASI INTERAKTIF'),`<div class="demo-stats"><div>${tr('TOTAL UNITS','TOTAL UNIT')}<strong id="stock-total"></strong></div><div>${tr('PRODUCT TYPES','JENIS PRODUK')}<strong id="stock-types"></strong></div><div>${tr('LOW STOCK (UNDER 10)','STOK RENDAH (DI BAWAH 10)')}<strong id="stock-low"></strong></div></div><form id="inventory-form" class="demo-input-row"><label>${tr('Product name','Nama produk')}<input id="product-name" maxlength="35" placeholder="${tr('e.g. Oat cookies','contoh: Kue oat')}" required></label><label>${tr('Quantity','Jumlah')}<input id="product-quantity" type="number" min="1" max="9999" value="10" required></label><button class="button button-dark" type="submit">${tr('Add product +','Tambah produk +')}</button></form><table class="inventory-table"><thead><tr><th>${tr('PRODUCT','PRODUK')}</th><th>${tr('STOCK','STOK')}</th><th>${tr('ADJUST','UBAH')}</th></tr></thead><tbody id="inventory-rows"></tbody></table><p id="inventory-status" class="demo-status" aria-live="polite"></p><p class="demo-note">${tr('Sample data. Add items and adjust quantities. This mini demo resets when you close it.','Data contoh. Tambahkan barang dan ubah jumlahnya. Demo mini direset saat ditutup.')}</p>`);
+  renderProgress();
+  document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(renderProgress), { once: true });
+
+  const nav = document.getElementById('mainNav');
+  const menu = document.getElementById('menu');
+  function toggleMenu(open) {
+    nav.classList.toggle('expanded', open);
+    menu.setAttribute('aria-expanded', open);
+    menu.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
   }
-  function rsaDemo(){
-    return demoShell(tr('A message. A little math. A mystery.','Pesan. Matematika. Rahasia.'),'RSA / EDUCATIONAL DEMO',`<div class="rsa-keys"><span>p = 61 · q = 53</span><span>${tr('Public','Publik')}: (17, 3233)</span><span>${tr('Private','Privat')}: (2753, 3233)</span></div><form id="rsa-form" class="demo-input-row"><label>${tr('Your message (up to 64 characters)','Pesanmu (maksimal 64 karakter)')}<input id="rsa-plaintext" value="Hello, Natasya!" maxlength="64" required></label><button type="submit" class="button button-dark">${tr('Encrypt ↗','Enkripsi ↗')}</button><button type="button" id="rsa-decrypt" class="demo-secondary" disabled>${tr('Decrypt ↙','Dekripsi ↙')}</button></form><div class="cipher-output" id="rsa-output" aria-live="polite">${tr('Your ciphertext will appear here.','Teks terenkripsimu akan muncul di sini.')}</div><p id="rsa-status" class="demo-status" aria-live="polite"></p><p class="demo-note">${tr('Educational only: this demo uses tiny, fixed keys and no padding. It is not suitable for protecting real data. The original project explores dynamic key generation.','Hanya untuk belajar: demo ini memakai kunci kecil tetap tanpa padding. Tidak cocok untuk melindungi data nyata. Proyek aslinya mengeksplorasi pembuatan kunci dinamis.')}</p>`,'rsa-demo');
-  }
-  function ticketDemo(){
-    return demoShell(tr('Where shall we go?','Mau ke mana?'),tr('FICTIONAL SERVICES / DEMO ONLY','LAYANAN FIKTIF / HANYA DEMO'),`<form id="ticket-form" class="demo-input-row"><label>${tr('From','Dari')}<select id="ticket-from"><option>Jakarta</option><option>Bandung</option><option>Yogyakarta</option><option>Surabaya</option></select></label><label>${tr('To','Ke')}<select id="ticket-to"><option>Bandung</option><option>Jakarta</option><option>Yogyakarta</option><option>Surabaya</option></select></label><label>${tr('Class','Kelas')}<select id="ticket-class"><option value="economy">${tr('Economy','Ekonomi')}</option><option value="executive">${tr('Executive','Eksekutif')}</option></select></label><button class="button button-dark" type="submit">${tr('Find a journey ↗','Cari perjalanan ↗')}</button></form><p id="ticket-status" class="demo-status" aria-live="polite"></p><div id="ticket-results" class="ticket-results" aria-live="polite"></div><div id="ticket-confirmation" aria-live="polite"></div><p class="demo-note">${tr('Illustrative routes, prices, and times. No real bookings or passenger data are collected.','Rute, harga, dan jam hanya ilustrasi. Tidak ada pemesanan nyata atau pengumpulan data penumpang.')}</p>`);
-  }
-  function bankingDemo(){
-    return demoShell(tr('A smoother everyday flow.','Alur harian yang lebih nyaman.'),tr('CLICKABLE UI RECREATION','REKREASI UI INTERAKTIF'),`<div class="bank-demo-area"><div class="bank-demo-phone"><h4>Good morning, Natasya ☀</h4><div class="balance-card"><span>${tr('DEMO BALANCE','SALDO DEMO')}</span><strong id="bank-balance">Rp 8.450.000</strong></div><div class="bank-demo-nav"><button id="bank-home" aria-pressed="true">${tr('Overview','Ringkasan')}</button><button id="bank-transfer" aria-pressed="false">${tr('Transfer','Transfer')}</button><button id="bank-history" aria-pressed="false">${tr('Activity','Riwayat')}</button></div><div id="bank-screen" class="bank-demo-screen"></div></div><div class="bank-demo-explainer"><h4>${tr('Make the next step obvious.','Langkah berikutnya terasa jelas.')}</h4><p>${tr('Switch between the account overview, a transfer form, and recent activity. Try sending a demo transfer and see the balance and history update.','Pindah dari ringkasan akun ke form transfer dan aktivitas terbaru. Coba transfer demo dan lihat saldo serta riwayat berubah.')}</p><p class="demo-note">${tr('A new coded recreation of my Figma design concept. Fictional account and sample transactions. No real banking.','Rekreasi baru dengan kode dari konsep desain Figma-ku. Akun dan transaksi fiktif. Tidak ada aktivitas perbankan nyata.')}</p></div></div>`);
-  }
-  function rentalDemo(){return demoShell(tr('Find your kind of road.','Temukan gaya perjalananmu.'),tr('DESIGN CONCEPT PREVIEW','PRATINJAU KONSEP DESAIN'),`<div class="rental-preview"><h4 id="car-name">City Compact</h4><p id="car-description"></p><div class="car-art"><div class="car-roof"></div><div class="car-body"></div><div class="car-wheel"></div><div class="car-wheel"></div></div><span class="car-detail" id="car-detail"></span></div><div class="preview-switch"><button data-car="0" aria-pressed="true">City</button><button data-car="1" aria-pressed="false">Adventure</button><button data-car="2" aria-pressed="false">Family</button></div><p class="demo-note">${tr('Illustrative vehicle categories. Explore the selection interaction; no rental booking is made.','Kategori kendaraan ilustratif. Coba interaksi pemilihan mobil; tidak ada pemesanan rental.')}</p>`);}
-  function fastbiteDemo(){return demoShell(tr('A possibility for every beginning.','Peluang untuk setiap awal.'),tr('DESIGN CONCEPT PREVIEW','PRATINJAU KONSEP DESAIN'),`<div class="fastbite-packages"><button data-package="0" class="active"><span>01 / THE FIRST STEP</span><strong>Starter</strong><small>${tr('A compact beginning.','Awal yang sederhana.')}</small></button><button data-package="1"><span>02 / ROOM TO GROW</span><strong>Signature</strong><small>${tr('A little more possibility.','Lebih banyak kemungkinan.')}</small></button><button data-package="2"><span>03 / THINK BIGGER</span><strong>Flagship</strong><small>${tr('The full brand experience.','Pengalaman merek lengkap.')}</small></button></div><p id="package-description" class="package-description" aria-live="polite"></p><p class="demo-note">${tr('Illustrative package names created for this interaction. They do not represent actual franchise offerings or prices.','Nama paket merupakan ilustrasi untuk interaksi ini. Bukan penawaran atau harga waralaba sungguhan.')}</p>`);}
-  function renderProject(p){
-    const i=lang==='id'?1:0;
-    const demos={inventory:inventoryDemo,inventory23:inventoryDemo,rsa:rsaDemo,ticket:ticketDemo,banking:bankingDemo,rental:rentalDemo,fastbite:fastbiteDemo};
-    $('#modal-content').innerHTML=`<div class="modal-heading"><p class="eyebrow">${p.dates.toUpperCase()} / ${p.category==='design'?'UI/UX DESIGN':'WEB DEVELOPMENT'}</p><h2 id="modal-title">${p.name}</h2><p>${p.description[i]}</p><div class="modal-tags">${p.tags.map(t=>`<span>${t}</span>`).join('')}</div></div>${demos[p.id]()}<div class="modal-details"><div><h3>${tr('The idea behind it','Ide di balik karya')}</h3><p>${p.problem[i]}</p>${p.id==='inventory'?`<p>${tr('Related part-time experience at Orang Tua (2023 & 2024): inventory work covering 200+ items daily, with a 30% reduction in discrepancies reported in my CV.','Pengalaman paruh waktu terkait di Orang Tua (2023 & 2024): pencatatan lebih dari 200 barang per hari, dengan pengurangan selisih stok 30% yang tercantum di CV-ku.')}</p>`:''}</div><div><h3>${tr('What I worked on','Yang aku kerjakan')}</h3><ul>${(i?p.builtId:p.built).map(t=>`<li>${t}</li>`).join('')}</ul></div></div>`;
-    if(p.id==='inventory'||p.id==='inventory23')initInventory();
-    if(p.id==='rsa')initRSA();if(p.id==='ticket')initTicket();if(p.id==='banking')initBank();if(p.id==='rental')initRental();if(p.id==='fastbite')initFastbite();
-  }
-  function initInventory(){
-    const items=[{name:tr('Oat cookies','Kue oat'),stock:48},{name:tr('Fruit tea','Teh buah'),stock:32},{name:tr('Chocolate wafers','Wafer cokelat'),stock:7}];
-    const draw=()=>{ $('#stock-total').textContent=items.reduce((a,b)=>a+b.stock,0);$('#stock-types').textContent=items.length;$('#stock-low').textContent=items.filter(i=>i.stock<10).length;$('#inventory-rows').innerHTML=items.map((p,i)=>`<tr><td>${escapeHTML(p.name)}</td><td>${p.stock}${p.stock<10?' <span title="Low stock">◔</span>':''}</td><td><span class="stock-control"><button data-stock="${i}" data-delta="-1" aria-label="${escapeHTML(tr('Decrease ','Kurangi ')+p.name)}" ${p.stock===0?'disabled':''}>−</button><button data-stock="${i}" data-delta="1" aria-label="${escapeHTML(tr('Increase ','Tambah ')+p.name)}" ${p.stock>=9999?'disabled':''}>+</button><button data-remove="${i}" aria-label="${escapeHTML(tr('Remove ','Hapus ')+p.name)}">×</button></span></td></tr>`).join('');};
-    $('#inventory-form').addEventListener('submit',e=>{e.preventDefault();const input=$('#product-name'),q=$('#product-quantity');const name=input.value.trim(),stock=Number(q.value);if(!name||!Number.isInteger(stock)||stock<1||stock>9999)return;const exists=items.find(p=>p.name.toLowerCase()===name.toLowerCase());if(exists){if(exists.stock+stock>9999){$('#inventory-status').textContent=tr('Maximum 9,999 units per product.','Maksimal 9.999 unit per produk.');return;}exists.stock+=stock;}else{items.push({name,stock});}draw();$('#inventory-status').textContent=tr(`${stock} units of ${name} added.`,`${stock} unit ${name} ditambahkan.`);input.value='';input.focus();});
-    $('#inventory-rows').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.remove!==undefined){const [removed]=items.splice(Number(b.dataset.remove),1);$('#inventory-status').textContent=tr(`${removed.name} removed.`,`${removed.name} dihapus.`);}else{const p=items[Number(b.dataset.stock)];p.stock=Math.max(0,Math.min(9999,p.stock+Number(b.dataset.delta)));$('#inventory-status').textContent=`${p.name}: ${p.stock} ${tr('units','unit')}`;}draw();});draw();
-  }
-  function initRSA(){
-    let cipher=[];
-    const pow=(base,exp,mod)=>{let result=1n;while(exp>0n){if(exp%2n)result=result*base%mod;base=base*base%mod;exp/=2n;}return result;};
-    $('#rsa-form').addEventListener('submit',e=>{e.preventDefault();const value=$('#rsa-plaintext').value;if(!value)return;cipher=[...new TextEncoder().encode(value)].map(b=>pow(BigInt(b),17n,3233n));$('#rsa-output').textContent=cipher.join(' ');$('#rsa-status').textContent=tr('Encrypted. Every UTF-8 byte becomes a number. Now try decrypting it.','Terenkripsi. Setiap byte UTF-8 menjadi angka. Sekarang coba dekripsi.');$('#rsa-decrypt').disabled=false;});
-    $('#rsa-decrypt').addEventListener('click',()=>{const result=new TextDecoder().decode(Uint8Array.from(cipher.map(c=>Number(pow(c,2753n,3233n)))));$('#rsa-output').textContent=result;$('#rsa-status').textContent=tr('Decrypted. Your original message is back.','Berhasil didekripsi. Pesan aslimu kembali.');});
-  }
-  function initTicket(){
-    const money=v=>'Rp '+new Intl.NumberFormat('id-ID').format(v);
-    $('#ticket-form').addEventListener('submit',e=>{e.preventDefault();const from=$('#ticket-from').value,to=$('#ticket-to').value,cls=$('#ticket-class').value;$('#ticket-confirmation').innerHTML='';$('#ticket-status').classList.toggle('error',from===to);if(from===to){$('#ticket-status').textContent=tr('Choose two different cities for your journey.','Pilih dua kota berbeda untuk perjalananmu.');$('#ticket-results').innerHTML='';return;}const cost=cls==='economy'?150000:275000;const services=[{name:'Curiosity Express',time:'08:00 → 11:00',price:cost},{name:'Scenic Explorer',time:'13:30 → 16:30',price:cost+25000}];$('#ticket-status').textContent=tr('Two fictional journeys to explore.','Dua perjalanan fiktif untuk dicoba.');$('#ticket-results').innerHTML=services.map((s,i)=>`<div class="train-result"><div><strong>${s.name}</strong><small>${from} → ${to} · ${cls==='economy'?tr('Economy','Ekonomi'):tr('Executive','Eksekutif')}</small></div><span>${s.time}<small>${money(s.price)}</small></span><button data-book="${i}">${tr('Try booking','Coba pesan')} ↗</button></div>`).join('');$$('[data-book]').forEach(b=>b.addEventListener('click',()=>{const s=services[Number(b.dataset.book)];$('#ticket-confirmation').innerHTML=`<div class="ticket-confirmation"><h4>✓ ${tr('Your demo ticket is ready.','Tiket demomu siap.')}</h4><p>${s.name} · ${from} → ${to}<br>${s.time} · ${money(s.price)}</p><small>${tr('DEMO ONLY · NOT VALID FOR TRAVEL','HANYA DEMO · TIDAK BERLAKU UNTUK PERJALANAN')}</small></div>`;}));});
-  }
-  function initBank(){
-    let balance=8450000,transactions=[{name:tr('Coffee corner','Kedai kopi'),amount:-35000},{name:tr('Monthly savings','Tabungan bulanan'),amount:500000}];
-    const fmt=n=>'Rp '+new Intl.NumberFormat('id-ID').format(n);
-    const nav=mode=>{['home','transfer','history'].forEach(m=>$('#bank-'+m).setAttribute('aria-pressed',String(m===mode)));const screen=$('#bank-screen');if(mode==='home')screen.innerHTML=`<p>${tr('Everything you need, a little closer.','Semua yang kamu butuhkan, lebih dekat.')}<br><br>${tr('Tap Transfer to try a demo payment, or Activity to see your recent transactions.','Pilih Transfer untuk mencoba pembayaran demo, atau Riwayat untuk melihat transaksi.')}</p>`;if(mode==='history')screen.innerHTML=transactions.map(t=>`<p>${escapeHTML(t.name)}<br><strong>${t.amount<0?'−':'+'} ${fmt(Math.abs(t.amount))}</strong></p>`).join('');if(mode==='transfer'){screen.innerHTML=`<form id="bank-form"><label>${tr('Recipient (fictional)','Penerima (fiktif)')}<input id="bank-recipient" value="Demo friend" maxlength="30" required></label><label>${tr('Amount (Rp)','Jumlah (Rp)')}<input id="bank-amount" type="number" min="1" max="${balance}" placeholder="250000" required></label><button type="submit" class="button button-dark">${tr('Send demo transfer ↗','Kirim transfer demo ↗')}</button><p id="bank-status" role="status"></p></form>`;$('#bank-form').addEventListener('submit',e=>{e.preventDefault();const amount=Number($('#bank-amount').value),name=$('#bank-recipient').value.trim();if(!name||!Number.isSafeInteger(amount)||amount<=0||amount>balance){$('#bank-status').textContent=tr('Enter a valid recipient and amount within the demo balance.','Masukkan penerima dan jumlah yang sesuai saldo demo.');return;}balance-=amount;transactions.unshift({name,amount:-amount});$('#bank-balance').textContent=fmt(balance);screen.innerHTML=`<p>✓ ${tr('Demo transfer complete.','Transfer demo berhasil.')}<br><strong>${fmt(amount)}</strong><br>${tr('to','ke')} ${escapeHTML(name)}<br><br>${tr('See Activity for your updated history.','Lihat Riwayat untuk transaksi terbaru.')}</p>`;});}};
-    ['home','transfer','history'].forEach(m=>$('#bank-'+m).addEventListener('click',()=>nav(m)));nav('home');
-  }
-  function initRental(){const cars=[{name:'City Compact',description:tr('Small streets. Spontaneous plans.','Jalan kecil. Rencana spontan.'),detail:tr('Compact · 4 seats · City comfort','Ringkas · 4 kursi · Nyaman di kota'),color:'#99b1a0'},{name:'Adventure SUV',description:tr('A little room for the unexpected.','Ruang untuk kejutan perjalanan.'),detail:tr('SUV · 5 seats · More room to explore','SUV · 5 kursi · Ruang untuk menjelajah'),color:'#b89a72'},{name:'Family MPV',description:tr('Good company deserves a little more space.','Teman perjalanan butuh ruang lebih.'),detail:tr('MPV · 7 seats · Together, comfortably','MPV · 7 kursi · Nyaman bersama'),color:'#94a7b5'}];const select=i=>{$('#car-name').textContent=cars[i].name;$('#car-description').textContent=cars[i].description;$('#car-detail').textContent=cars[i].detail;$('.rental-preview .car-body').style.background=cars[i].color;$('.rental-preview .car-roof').style.background=cars[i].color;$$('[data-car]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.car)===i)));};$$('[data-car]').forEach(b=>b.addEventListener('click',()=>select(Number(b.dataset.car))));select(0);}
-  function initFastbite(){const descriptions=[tr('Starter — a compact kiosk concept for a simple first step. Clear essentials and a focused offering.','Starter — konsep kios ringkas untuk langkah awal sederhana. Kebutuhan inti dan penawaran yang terarah.'),tr('Signature — a small shop concept with space for your own neighborhood story. A balanced next chapter.','Signature — konsep gerai kecil dengan ruang untuk cerita di lingkunganmu. Langkah berikutnya yang seimbang.'),tr('Flagship — a larger dine-in concept that brings the whole brand experience together. Think a little bigger.','Flagship — konsep tempat makan lebih besar dengan pengalaman merek lengkap. Berpikir sedikit lebih luas.')];const select=i=>{$('#package-description').textContent=descriptions[i];$$('[data-package]').forEach(b=>{const selected=Number(b.dataset.package)===i;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));});};$$('[data-package]').forEach(b=>b.addEventListener('click',()=>select(Number(b.dataset.package))));select(0);}
-  const galleries = {
-    robotics: {
-      label: 'RAICOM 2026 / FIELD NOTES',
-      images: [
-        {src:'assets/raicom-robot.jpg',title:'Meet the competition robot.',alt:'Competition robot on an indoor test arena',caption:'The reconnaissance robot from our RAICOM 2026 project, on the indoor competition arena. Team Zero-Pole Innovation.'},
-        {src:'assets/raicom-presentation.jpg',title:'A technical story, shared in English.',alt:'A presenter speaking to an international panel beside a robotics arena',caption:'Presenting the robotics project to an international panel. My role: English Presenter, Team Zero-Pole Innovation.'}
-      ]
-    },
-    awards: {
-      label: 'CREATIVE COMPUTING / AWARDS',
-      images: [
-        {src:'assets/algorithm-aigc-third-prize.jpg',title:'Algorithm & AIGC — Third Prize.',alt:'Algorithm and AIGC Computer Design Competition Third Prize certificate, June 2026',caption:'Third Prize in the 2026 Algorithm & AIGC Computer Design Competition at Nanjing Xiaozhuang University. Awarded in June 2026.'},
-        {src:'assets/computer-design-third-prize.jpg',title:'Computer Design — Third Prize.',alt:'University Computer Design Competition Third Prize certificate for Xingkan Village, June 2026',caption:'Third Prize for “Xingkan Village” in the university round of the 2026 Jiangsu University Student Computer Design Competition, hosted by Nanjing Xiaozhuang University. Category: Chinese-character micro-lessons and AI-assisted teaching for international students. June 2026.'}
-      ]
+  menu.addEventListener('click', () => toggleMenu(menu.getAttribute('aria-expanded') !== 'true'));
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('.site-head')) toggleMenu(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') {
+      toggleMenu(false);
+      menu.focus();
     }
-  };
-  let currentGallery='robotics', galleryIndex=0;
-  const renderGallery=()=>{
-    const gallery=galleries[currentGallery],item=gallery.images[galleryIndex];
-    $('#gallery-label').textContent=gallery.label;
-    $('#gallery-title').textContent=item.title;
-    $('#gallery-counter').textContent=`${galleryIndex+1} / ${gallery.images.length}`;
-    $('#gallery-image').src=item.src;
-    $('#gallery-image').alt=item.alt;
-    $('#gallery-caption').textContent=item.caption;
-    $('#gallery-download').href=item.src;
-    $('#gallery-stage').classList.remove('zoomed');
-    $('#gallery-stage').scrollTo(0,0);
-    $('#gallery-zoom').setAttribute('aria-pressed','false');
-    $('#gallery-zoom').textContent='Zoom in +';
-  };
-  document.addEventListener('click',e=>{
-    const button=e.target.closest('[data-gallery]');if(!button)return;
-    currentGallery=button.dataset.gallery;galleryIndex=Number(button.dataset.image)||0;
-    renderGallery();openDialog($('#gallery-dialog'));
   });
-  const changeGalleryImage=delta=>{galleryIndex=(galleryIndex+delta+galleries[currentGallery].images.length)%galleries[currentGallery].images.length;renderGallery();};
-  $('#gallery-prev').addEventListener('click',()=>changeGalleryImage(-1));
-  $('#gallery-next').addEventListener('click',()=>changeGalleryImage(1));
-  $('#gallery-zoom').addEventListener('click',()=>{
-    const zoomed=$('#gallery-stage').classList.toggle('zoomed');
-    $('#gallery-zoom').setAttribute('aria-pressed',String(zoomed));
-    $('#gallery-zoom').textContent=zoomed?'Fit image −':'Zoom in +';
+  nav.addEventListener('click', () => toggleMenu(false));
+
+  const guide = document.getElementById('guideDialog');
+  document.getElementById('guide').addEventListener('click', () => guide.showModal());
+  guide.querySelector('.dialog-close').addEventListener('click', () => guide.close());
+  guide.addEventListener('click', event => {
+    if (event.target === guide) {
+      const box = guide.getBoundingClientRect();
+      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) guide.close();
+    }
   });
-  $('#gallery-dialog').addEventListener('keydown',e=>{
-    if(e.key==='ArrowLeft'){e.preventDefault();changeGalleryImage(-1);}
-    if(e.key==='ArrowRight'){e.preventDefault();changeGalleryImage(1);}
+  document.querySelectorAll('[data-panel]').forEach(button => {
+    button.addEventListener('click', () => window.openPortfolioPanel(button.dataset.panel));
   });
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-project]');if(!b)return;const p=projects.find(p=>p.id===b.dataset.project);if(!p)return;activeProject=p;renderProject(p);openDialog($('#project-dialog'));discover('work');});
-  $$('.filter').forEach(b=>b.addEventListener('click',()=>{activeFilter=b.dataset.filter;$$('.filter').forEach(el=>{el.classList.toggle('active',el===b);el.setAttribute('aria-pressed',String(el===b));});renderProjects();}));
-  $$('[data-skill]').forEach(b=>b.addEventListener('click',()=>{activeSkill=b.dataset.skill;renderSkills();discover('skills');}));
-  $('.skill-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const tabs=$$('[data-skill]');let i=tabs.findIndex(t=>t.dataset.skill===activeSkill);if(e.key==='Home')i=0;else if(e.key==='End')i=tabs.length-1;else i=(i+(['ArrowRight','ArrowDown'].includes(e.key)?1:-1)+tabs.length)%tabs.length;tabs[i].click();tabs[i].focus();});
-  const activateStation=id=>{discover(id);const destinations={work:'#work',story:'#journey',skills:'#toolkit',contact:'#contact'};if(destinations[id])$(destinations[id]).scrollIntoView({behavior:paused?'instant':'smooth'});};
-  $$('[data-station]').forEach(b=>b.addEventListener('click',()=>activateStation(b.dataset.station)));
-  $('#passport-button').addEventListener('click',()=>{updatePassport();openDialog($('#passport-dialog'));});
-  $('#reset-passport').addEventListener('click',()=>{discoveries.clear();safeWrite('ns-discoveries',[]);updatePassport();toast(tr('A fresh adventure. Follow your curiosity.','Petualangan baru. Ikuti rasa ingin tahumu.'));});
-  $('#motion-toggle').addEventListener('click',()=>{paused=!paused;safeWrite('ns-paused',paused);setMotion();});
-  $('#copy-email').addEventListener('click',async()=>{const email='natasyasuryanto06@gmail.com';try{await navigator.clipboard.writeText(email);toast(tr('Email copied. Say hello whenever you like.','Email disalin. Sapa aku kapan saja.'));}catch{const range=document.createRange();range.selectNodeContents($('#copy-email'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);toast(tr('Select and copy: '+email,'Pilih dan salin: '+email));}discover('contact');});
-  $('.contact-cta').addEventListener('click',()=>discover('contact'));
-  if('IntersectionObserver' in window){const revealObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');revealObserver.unobserve(entry.target);}}),{threshold:.08});$$('.reveal').forEach(el=>revealObserver.observe(el));document.body.classList.add('js-ready');}
-  initialize();
-  window.NatasyaStudio={toast,discover,activateStation,get paused(){return paused;},get lang(){return lang;}};
+  document.getElementById('guidePlay').addEventListener('click', () => {
+    guide.close();
+    window.ChinaGame.start();
+  });
+
+  const sound = document.getElementById('sound');
+  let audio;
+  let soundOn = false;
+  function chime(notes) {
+    if (!soundOn || !audio || audio.state !== 'running') return;
+    notes.forEach((frequency, i) => {
+      const start = audio.currentTime + i * .08;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(.001, start);
+      gain.gain.exponentialRampToValueAtTime(.09, start + .009);
+      gain.gain.exponentialRampToValueAtTime(.001, start + .2);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(start);
+      osc.stop(start + .21);
+    });
+  }
+  sound.addEventListener('click', async () => {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) { sound.disabled = true; sound.title = 'Sound is unavailable in this browser'; return; }
+    if (!audio) audio = new Audio();
+    if (!soundOn) {
+      try { await audio.resume(); } catch { return; }
+    }
+    soundOn = !soundOn;
+    sound.setAttribute('aria-pressed', soundOn);
+    sound.setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on');
+    sound.querySelector('b').textContent = soundOn ? 'ON' : 'OFF';
+    sound.querySelector('use').setAttribute('href', soundOn ? '#i-volume' : '#i-mute');
+    chime([392, 523.25, 659.25]);
+  });
+  document.addEventListener('click', event => {
+    const button = event.target.closest('button, a, summary');
+    if (button && button !== sound) chime(button.matches('.map-pin, .map-action') ? [392, 493.88, 587.33] : [493.88]);
+  });
 })();

@@ -1,0 +1,129 @@
+#gameRoot {
+  --map-city: #ffcf70;
+  --map-line: #454458;
+  --map-ink: #1b1b2c;
+  color: #f9f5e9;
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+#gameRoot *, #gameRoot *::before, #gameRoot *::after { box-sizing: border-box; }
+#gameRoot .map-stage { position: relative; isolation: isolate; background: #294c47; }
+#gameRoot .map-viewport {
+  position: relative; overflow-x: auto; overflow-y: hidden; max-width: 100%;
+  overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: #779e82 #242a35;
+  scroll-behavior: auto;
+}
+#gameRoot .map-viewport:focus-visible { outline: 3px solid #a2f1d3; outline-offset: -3px; }
+#gameRoot .map-world {
+  position: relative; width: 100%; min-width: 710px; aspect-ratio: 2; isolation: isolate;
+  cursor: crosshair; -webkit-user-select: none; user-select: none;
+}
+#gameRoot .map-art {
+  display: block; width: 100%; height: 100%; position: absolute; inset: 0; z-index: -1;
+  object-fit: fill; image-rendering: pixelated; pointer-events: none;
+}
+#gameRoot .map-hud {
+  position: absolute; z-index: 4; top: clamp(9px, 1.55vw, 21px); left: clamp(9px, 1.55vw, 21px);
+  display: flex; align-items: center; gap: 11px; padding: 9px 13px 10px;
+  background: #1b1b2bf5; color: #dbd9df; border: 1px solid #aba7a6;
+  box-shadow: 3px 3px 0 #161823ac; pointer-events: none;
+}
+#gameRoot .map-hud > span:last-child { display: grid; gap: 5px; font: .72rem/1.2 "Space Mono", monospace; text-transform: uppercase; letter-spacing: .07em; }
+#gameRoot .map-current { font: 400 .69rem/1.36 Pixel, monospace; text-transform: uppercase; color: #fff2cb; letter-spacing: 0; }
+#gameRoot .map-gps {
+  position: relative; display: block; width: 18px; height: 23px; background: var(--map-city);
+  clip-path: polygon(20% 0,80% 0,80% 9%,91% 9%,91% 19%,100% 19%,100% 49%,90% 49%,90% 60%,77% 60%,77% 71%,65% 71%,65% 84%,54% 84%,54% 100%,44% 100%,44% 84%,33% 84%,33% 71%,21% 71%,21% 60%,10% 60%,10% 49%,0 49%,0 19%,9% 19%,9% 9%,20% 9%);
+}
+#gameRoot .map-gps::after { content: ""; position: absolute; width: 6px; height: 6px; left: 6px; top: 5px; background: var(--map-ink); }
+#gameRoot .map-pin {
+  position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; min-height: 48px; padding: 0 0 clamp(35px, 3.9vw, 59px);
+  color: #fff8df; background: transparent; border: 0; border-radius: 0; cursor: pointer;
+  transform: translate(-50%, -100%); -webkit-tap-highlight-color: transparent;
+}
+#gameRoot .map-pin-tag {
+  position: relative; display: flex; align-items: center; gap: 8px; padding: 10px 11px 9px;
+  background: #1c1b2bf5; border: 2px solid var(--pin-color); outline: 2px solid #292635;
+  box-shadow: 3px 4px 0 1px #121423a8; color: #fff5dc; white-space: nowrap;
+  font: 400 clamp(.63rem, .92vw, .79rem)/1.3 Pixel, monospace;
+}
+#gameRoot .map-pin-copy { display: grid; gap: 4px; text-align: left; }
+#gameRoot .map-pin-copy strong { font-weight: 400; }
+#gameRoot .map-pin-copy small { color: var(--pin-color); font: .77rem/1.15 "DM Sans", sans-serif; letter-spacing: .025em; }
+#gameRoot .map-pin:hover .map-pin-copy small, #gameRoot .map-pin:focus-visible .map-pin-copy small { color: #343342; }
+#gameRoot .map-near .map-pin-tip { background: #fffde7; }
+#gameRoot .map-pin-tag i, #gameRoot .map-legend-stop, #gameRoot .map-legend-player {
+  position: relative; width: 9px; height: 9px; border: 2px solid var(--pin-color, #f8ce7d);
+  background: #2b2939; transform: rotate(45deg); flex: none;
+}
+#gameRoot .map-pin-tip {
+  position: relative; width: 13px; height: 9px; margin-top: 2px; background: var(--pin-color);
+  clip-path: polygon(0 0,100% 0,100% 33%,76% 33%,76% 66%,60% 66%,60% 100%,40% 100%,40% 66%,24% 66%,24% 33%,0 33%);
+}
+#gameRoot .map-pin:hover .map-pin-tag, #gameRoot .map-pin:focus-visible .map-pin-tag { color: #1b1b2b; background: var(--pin-color); }
+#gameRoot .map-pin:focus-visible { outline: 3px dashed #fff; outline-offset: 5px; }
+#gameRoot .map-pin.map-visited .map-pin-tag i { background: var(--pin-color); }
+#gameRoot .map-player {
+  position: absolute; z-index: 3; width: clamp(25px, 2.8vw, 39px); pointer-events: none;
+  transform: translate(-50%, -100%); filter: drop-shadow(1px 1px 0 #1816278f);
+}
+#gameRoot .map-player i {
+  position: absolute; left: 14%; right: 9%; bottom: -1px; height: 10%; border-radius: 50%; background: #342c48a3;
+}
+#gameRoot .map-player::before {
+  content: ""; position: absolute; left: 50%; top: -8px; width: 9px; height: 6px;
+  transform: translateX(-50%); background: #c4ffdc;
+  clip-path: polygon(0 0,100% 0,100% 36%,72% 36%,72% 68%,57% 68%,57% 100%,43% 100%,43% 68%,28% 68%,28% 36%,0 36%);
+}
+#gameRoot .map-player canvas { position: relative; display: block; width: 100%; height: auto; image-rendering: pixelated; }
+#gameRoot .map-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 22px;
+  padding: 9px clamp(12px, 2vw, 25px); border-top: 2px solid var(--map-line);
+  background: #202030; color: #e1dce6; font-size: .85rem;
+}
+#gameRoot .map-legend, #gameRoot .map-legend span, #gameRoot #map-help, #gameRoot .map-action { display: inline-flex; align-items: center; }
+#gameRoot .map-legend { flex-wrap: wrap; gap: 8px 20px; }
+#gameRoot .map-legend span { gap: 7px; }
+#gameRoot .map-legend-player { border: none; transform: none; background: #b9f7d4; clip-path: polygon(27% 0,75% 0,75% 16%,88% 16%,88% 50%,73% 50%,73% 61%,100% 61%,100% 100%,0 100%,0 61%,27% 61%,27% 50%,12% 50%,12% 16%,27% 16%); }
+#gameRoot #map-help { margin: 0 0 0 auto; color: #c8c7d7; }
+#gameRoot .map-desktop-hint { display: inline-flex; gap: 7px; align-items: center; }
+#gameRoot kbd {
+  display: inline-grid; min-width: 23px; min-height: 22px; place-items: center;
+  padding: 1px 5px; color: #e8e7ef; background: #302f43; border: 1px solid #626076; border-bottom-width: 2px;
+  font: .75rem/1.3 "Space Mono", monospace;
+}
+#gameRoot .map-action {
+  min-height: 36px; justify-content: center; gap: 8px; padding: 4px 9px;
+  background: #302e3d; color: #ffe6a3; border: 1px solid #777061; font: inherit; cursor: pointer;
+}
+#gameRoot .map-action:hover, #gameRoot .map-action:focus-visible { border-color: #ffe0a0; background: #48404a; }
+#gameRoot .map-dpad, #gameRoot .map-touch-hint { display: none; }
+@media (hover: none), (max-width: 700px) {
+  #gameRoot .map-world { min-width: 660px; }
+  #gameRoot .map-viewport { touch-action: pan-x pan-y pinch-zoom; }
+  #gameRoot .map-hud { top: 8px; left: 8px; gap: 7px; padding: 6px 9px; }
+  #gameRoot .map-hud > span:last-child { gap: 3px; font-size: .65rem; }
+  #gameRoot .map-current { font-size: .63rem; }
+  #gameRoot .map-pin-tag { padding: 8px; }
+  #gameRoot .map-toolbar { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 9px 11px; }
+  #gameRoot .map-legend { gap: 12px; }
+  #gameRoot .map-desktop-hint, #gameRoot .map-action kbd { display: none; }
+  #gameRoot .map-touch-hint { display: inline; }
+  #gameRoot .map-dpad { display: flex; gap: 4px; }
+  #gameRoot .map-dpad button {
+    display: grid; place-items: center; width: 39px; height: 38px; background: #302f43;
+    border: 1px solid #656174; border-bottom-width: 3px; padding: 0; touch-action: none;
+  }
+  #gameRoot .map-dpad button:active { background: #58536a; border-bottom-width: 1px; }
+  #gameRoot .map-dpad i {
+    display: block; width: 13px; height: 12px; background: #e5e4da;
+    clip-path: polygon(0 38%,20% 38%,20% 20%,40% 20%,40% 0,58% 0,58% 31%,100% 31%,100% 69%,58% 69%,58% 100%,40% 100%,40% 80%,20% 80%,20% 62%,0 62%);
+  }
+  #gameRoot [data-move="up"] i { transform: rotate(90deg); }
+  #gameRoot [data-move="down"] i { transform: rotate(-90deg); }
+  #gameRoot [data-move="right"] i { transform: rotate(180deg); }
+  #gameRoot .map-action { min-height: 38px; }
+}
+@media (max-width: 350px) {
+  #gameRoot .map-toolbar { font-size: .75rem; }
+  #gameRoot .map-legend { gap: 7px; }
+}
